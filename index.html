@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071521">
+  <meta name="description" content="محاكي تفاعلي تقديري لمحرك خطوي هجين ثنائي الطور، مع حركة محسوبة ومخططات التيار والموضع والسرعة والعزم.">
+  <title>Hybrid Stepper Motor Laboratory</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23071521'/%3E%3Ccircle cx='32' cy='32' r='21' fill='none' stroke='%2344d7d2' stroke-width='6' stroke-dasharray='8 4'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%23ffb35c'/%3E%3Cpath d='M32 15v9M49 32h-9M32 49v-9M15 32h9' stroke='%23eaf6f8' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <span class="brand-rotor"></span>
+      </div>
+      <div>
+        <p class="eyebrow">TWO-PHASE HYBRID STEPPER</p>
+        <h1 class="heading-en">Hybrid Stepper Motor Laboratory</h1>
+        <p class="heading-ar brand-ar">مختبر المحرك الخطوي الهجين</p>
+        <p class="subhead">غيّري ظروف التشغيل، ثم راقبي الحركة التقديرية والنتائج الزمنية.</p>
+      </div>
+    </div>
+    <div class="model-chip">
+      <span class="status-dot" aria-hidden="true"></span>
+      نموذج ديناميكي تقديري
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="control-panel" aria-label="مدخلات المحاكاة">
+      <form id="simForm">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">INPUTS</p>
+            <h2 class="heading-en">Operating Conditions</h2>
+            <p class="heading-ar">ظروف التشغيل</p>
+          </div>
+          <button class="text-button" type="button" id="resetDefaults">إرجاع الافتراضي</button>
+        </div>
+
+        <section class="datasheet-card" aria-labelledby="datasheetTitle">
+          <div class="datasheet-heading">
+            <div>
+              <p class="section-kicker">MOTOR DATA</p>
+              <h3 id="datasheetTitle" class="heading-en">Datasheet Profile</h3>
+              <p class="heading-ar">ملف مواصفات الماطور</p>
+            </div>
+            <span class="local-badge">LOCAL ONLY · محلياً</span>
+          </div>
+
+          <label class="field field-wide">
+            <span>Motor profile <b>بروفايل الماطور</b></span>
+            <select id="motorProfile" name="motorProfile">
+              <option value="project" selected>Supplied project profile</option>
+              <option value="stepperonline23HE30">StepperOnline 23HE30-2804S · verified</option>
+              <option value="custom">Custom datasheet · ملف مخصص</option>
+            </select>
+          </label>
+
+          <div class="datasheet-actions">
+            <input class="visually-hidden" id="datasheetFile" type="file" accept=".csv,.json,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/json,application/pdf,image/*">
+            <label class="upload-button" for="datasheetFile">
+              <span aria-hidden="true">⇧</span>
+              <span><b>Upload Datasheet</b><small>رفع الداتا شيت</small></span>
+            </label>
+            <button class="secondary-button template-button" type="button" id="downloadTemplate">
+              <b>Download Template</b>
+              <small>تنزيل قالب CSV</small>
+            </button>
+          </div>
+
+          <div id="datasheetStatus" class="datasheet-status neutral" role="status" aria-live="polite"></div>
+        </section>
+
+        <div class="field-grid">
+          <label class="field field-wide">
+            <span>نمط الإثارة <b>Excitation mode</b></span>
+            <select id="mode" name="mode">
+              <option value="full">Full-step — خطوتان فعّالتان</option>
+              <option value="half">Half-step</option>
+              <option value="micro16" selected>1/16 Microstepping</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>السرعة المطلوبة <b>rpm</b></span>
+            <input id="speedRpm" name="speedRpm" type="number" min="1" max="300" step="1" value="20" required>
+          </label>
+
+          <label class="field">
+            <span>اتجاه الدوران</span>
+            <select id="direction" name="direction">
+              <option value="1">CCW (+) — عكس عقارب الساعة</option>
+              <option value="-1">CW (−) — مع عقارب الساعة</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>عزم الحمل <b>N·m</b></span>
+            <input id="loadTorque" name="loadTorque" type="number" min="0" max="4" step="0.005" value="0.005" required>
+          </label>
+
+          <label class="field">
+            <span>زمن المحاكاة <b>s</b></span>
+            <input id="duration" name="duration" type="number" min="0.20" max="3" step="0.05" value="0.80" required>
+          </label>
+
+          <label class="field field-wide">
+            <span>زمن التسارع <b>s</b></span>
+            <input id="accelTime" name="accelTime" type="range" min="0.02" max="0.50" step="0.01" value="0.08">
+            <output id="accelTimeOut" for="accelTime">0.08 s</output>
+          </label>
+        </div>
+
+        <div class="pulse-card">
+          <label class="switch-row" for="pulseEnabled">
+            <span>
+              <b>نبضة حمل إضافية</b>
+              <small>لاختبار فقدان الخطوات أثناء التشغيل</small>
+            </span>
+            <input id="pulseEnabled" name="pulseEnabled" type="checkbox">
+            <span class="switch" aria-hidden="true"></span>
+          </label>
+          <div class="pulse-fields" id="pulseFields" aria-disabled="true">
+            <label class="field">
+              <span>عزم النبضة <b>N·m</b></span>
+              <input id="pulseTorque" type="number" min="0" max="5" step="0.05" value="2.60" disabled>
+            </label>
+            <label class="field">
+              <span>بداية النبضة <b>s</b></span>
+              <input id="pulseStart" type="number" min="0.02" max="2.9" step="0.01" value="0.45" disabled>
+            </label>
+            <label class="field field-wide">
+              <span>مدة النبضة <b>s</b></span>
+              <input id="pulseDuration" type="number" min="0.005" max="0.30" step="0.005" value="0.030" disabled>
+            </label>
+          </div>
+        </div>
+
+        <details class="advanced-panel">
+          <summary>
+            <span><b class="heading-en">Advanced Motor &amp; Driver Parameters</b><small>معلمات الماطور والـDriver</small></span>
+            <span class="summary-arrow" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="field-grid advanced-grid">
+            <label class="field">
+              <span>جهد التغذية <b>V</b></span>
+              <input id="voltage" type="number" min="6" max="60" step="any" value="24" required>
+            </label>
+            <label class="field">
+              <span>حد تيار الطور <b>A</b></span>
+              <input id="currentLimit" type="number" min="0.2" max="8" step="any" value="3.4" required>
+            </label>
+            <label class="field">
+              <span>مقاومة الطور <b>Ω</b></span>
+              <input id="resistance" type="number" min="0.1" max="5" step="any" value="0.5" required>
+            </label>
+            <label class="field">
+              <span>محاثة الطور <b>mH</b></span>
+              <input id="inductance" type="number" min="0.2" max="20" step="any" value="2.0" required>
+            </label>
+            <label class="field">
+              <span>ثابت العزم <b>N·m/A</b></span>
+              <input id="torqueConstant" type="number" min="0.05" max="1.5" step="any" value="0.575" required>
+            </label>
+            <label class="field">
+              <span>Holding torque <b>N·m · لمعايرة Kt</b></span>
+              <input id="holdingTorque" type="number" min="0.05" max="12" step="any" value="1.96" required>
+            </label>
+            <label class="field">
+              <span>عدد أسنان الروتر <b>p</b></span>
+              <input id="rotorTeeth" type="number" min="15" max="100" step="1" value="50" required>
+            </label>
+            <label class="field">
+              <span>القصور الذاتي <b>×10⁻⁶ kg·m²</b></span>
+              <input id="inertia" type="number" min="5" max="500" step="any" value="48" required>
+            </label>
+            <label class="field">
+              <span>التخميد اللزج <b>N·m·s/rad</b></span>
+              <input id="damping" type="number" min="0" max="0.20" step="any" value="0.05" required>
+            </label>
+            <label class="field">
+              <span>Detent torque <b>N·m</b></span>
+              <input id="detentTorque" type="number" min="0" max="0.50" step="any" value="0.068" required>
+            </label>
+            <label class="field">
+              <span>عرض حزمة التيار <b>Hz</b></span>
+              <input id="bandwidth" type="number" min="100" max="2500" step="50" value="700" required>
+            </label>
+          </div>
+          <div class="derived-row">
+            <span>زاوية الخطوة الكاملة</span>
+            <strong id="derivedStepAngle">1.800°</strong>
+          </div>
+        </details>
+
+        <div id="formError" class="form-error" role="alert" hidden></div>
+
+        <div class="action-row">
+          <button class="primary-button" type="submit" id="runButton">
+            <span class="run-icon" aria-hidden="true">▶</span>
+            شغّلي المحاكاة
+          </button>
+          <button class="secondary-button" type="button" id="overloadPreset">تجربة حمل مفاجئ</button>
+        </div>
+      </form>
+
+      <div class="scope-note">
+        <span class="info-symbol" aria-hidden="true">i</span>
+        <p><b>حدود الاستخدام:</b> النتائج تقديرية لنموذج ثنائي الطور. تصبح أقرب للماطور الحقيقي عند إدخال قيم الـdatasheet ومعايرتها تجريبياً.</p>
+      </div>
+    </aside>
+
+    <section class="results-column" aria-label="نتائج المحاكاة">
+      <div class="live-panel">
+        <div class="live-heading">
+          <div>
+            <p class="section-kicker">LIVE RESPONSE</p>
+            <h2 class="heading-en">Calculated Motion</h2>
+            <p class="heading-ar">الحركة المحسوبة</p>
+          </div>
+          <div id="runStatus" class="run-status neutral">
+            <span aria-hidden="true"></span>
+            بانتظار التشغيل
+          </div>
+        </div>
+
+        <div class="live-layout">
+          <div class="motor-card">
+            <div class="motor-visual-grid">
+              <section class="motor-view">
+                <div class="view-heading">
+                  <div><b>Internal Pole View</b><small>محاكاة الأقطاب الداخلية</small></div>
+                  <span>LIVE</span>
+                </div>
+                <canvas id="motorCanvas" width="620" height="620" role="img" aria-label="رسم متحرك للأقطاب والروتر داخل محرك خطوي هجين"></canvas>
+              </section>
+              <section class="motor-view">
+                <div class="view-heading">
+                  <div><b>External Motor View</b><small>الشكل الخارجي وحركة العمود</small></div>
+                  <span>SYNC</span>
+                </div>
+                <canvas id="externalMotorCanvas" width="620" height="620" role="img" aria-label="منظر خارجي متحرك لمحرك خطوي هجين وعموده"></canvas>
+              </section>
+            </div>
+            <div class="motor-readout">
+              <div><span>الزمن</span><b id="liveTime">0.000 s</b></div>
+              <div><span>الموضع</span><b id="liveAngle">0.00°</b></div>
+              <div><span>السرعة</span><b id="liveSpeed">0.0 rpm</b></div>
+              <div><span>العزم</span><b id="liveTorque">0.000 N·m</b></div>
+            </div>
+            <div class="playback-row">
+              <button id="playPause" class="round-button" type="button" aria-label="تشغيل الحركة" disabled>▶</button>
+              <input id="timeline" type="range" min="0" max="100" value="0" aria-label="شريط زمن المحاكاة" disabled>
+              <select id="playbackSpeed" aria-label="سرعة عرض الحركة">
+                <option value="2">Faster ×2 · أسرع مرتين</option>
+                <option value="1.5">Faster ×1.5 · أسرع مرة ونص</option>
+                <option value="1" selected>Normal ×1 · طبيعي</option>
+                <option value="0.6667">Slower ×1.5 · أبطأ مرة ونص</option>
+                <option value="0.5">Slower ×2 · أبطأ مرتين</option>
+                <option value="0.4">Slower ×2.5 · أبطأ مرتين ونص</option>
+                <option value="0.3333">Slower ×3 · أبطأ ثلاث مرات</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="metric-stack">
+            <article class="metric-card accent-cyan">
+              <span>Final Position</span>
+              <strong id="finalPosition">—</strong>
+              <small>الموضع النهائي للروتر</small>
+            </article>
+            <article class="metric-card accent-amber">
+              <span>Average Speed</span>
+              <strong id="averageSpeed">—</strong>
+              <small>متوسط آخر 20% من الزمن</small>
+            </article>
+            <article class="metric-card accent-rose">
+              <span>Peak Electromagnetic Torque</span>
+              <strong id="peakTorque">—</strong>
+              <small>أقصى عزم كهرومغناطيسي تقديري</small>
+            </article>
+            <article class="metric-card accent-violet">
+              <span>Peak Phase Current</span>
+              <strong id="peakCurrent">—</strong>
+              <small>أقصى تيار في أحد الطورين</small>
+            </article>
+            <article class="metric-card metric-wide">
+              <span>Final Position Error</span>
+              <strong id="finalError">—</strong>
+              <small id="stepLossText">لم تُشغّل المحاكاة بعد</small>
+            </article>
+          </div>
+        </div>
+
+        <div class="interpretation neutral" id="interpretation">
+          <span class="interpretation-icon" aria-hidden="true">◎</span>
+          <div>
+            <b>التفسير الهندسي سيظهر هنا</b>
+            <p>بعد التشغيل نقيّم التتبّع، تشبّع الجهد، واحتمال فقدان الخطوات.</p>
+          </div>
+        </div>
+      </div>
+
+      <section class="charts-panel">
+        <div class="charts-heading">
+          <div>
+            <p class="section-kicker">TIME HISTORIES</p>
+            <h2 class="heading-en">Time-History Charts</h2>
+            <p class="heading-ar">المخططات الزمنية</p>
+          </div>
+          <button id="downloadCsv" class="secondary-button compact" type="button" disabled>تنزيل النتائج CSV</button>
+        </div>
+
+        <div class="charts-grid">
+          <article class="chart-card">
+            <div class="chart-title">
+              <div><span>Phase Currents [A]</span><small>تيارات الأطوار</small></div>
+              <div class="legend"><i class="cyan"></i>iA <i class="amber"></i>iB</div>
+            </div>
+            <canvas id="currentChart" role="img" aria-label="مخطط تياري الطورين مع الزمن"></canvas>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">
+              <div><span>Commanded vs Actual Position [deg]</span><small>الموضع المطلوب والفعلي</small></div>
+              <div class="legend"><i class="violet"></i>θref <i class="cyan"></i>θ</div>
+            </div>
+            <canvas id="positionChart" role="img" aria-label="مخطط موضع الروتر المطلوب والفعلي"></canvas>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">
+              <div><span>Rotor Speed [rpm]</span><small>سرعة الروتر</small></div>
+              <div class="legend"><i class="cyan"></i>ω</div>
+            </div>
+            <canvas id="speedChart" role="img" aria-label="مخطط سرعة الروتر"></canvas>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">
+              <div><span>Electromagnetic &amp; Load Torque [N·m]</span><small>العزم الكهرومغناطيسي والحمل</small></div>
+              <div class="legend"><i class="rose"></i>Te <i class="amber"></i>TL</div>
+            </div>
+            <canvas id="torqueChart" role="img" aria-label="مخطط العزم الكهرومغناطيسي وعزم الحمل"></canvas>
+          </article>
+        </div>
+      </section>
+
+      <details class="model-note">
+        <summary><span class="summary-bilingual"><b>What Does This Model Calculate?</b><small>شنو يحسب هذا النموذج بالضبط؟</small></span></summary>
+        <div class="model-note-body">
+          <p>يحل حالتي التيار للطورين مع معادلتي الحركة الدورانية، ويضيف Back-EMF وDetent torque والحمل والتخميد. زاوية الرسم المتحرك مأخوذة من <b>θ(t)</b> المحسوبة، وليست حركة مرسومة مسبقاً.</p>
+          <p><b>مهم:</b> النموذج لم يُعايَر على منصة مختبرية؛ لذلك استعمليه للمقارنة وفهم الاتجاهات ضمن المدى المحدد، لا كشهادة أداء لماطور تجاري.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <div>
+      <b>Model &amp; Datasheet Sources</b>
+      <p>مصادر النموذج والداتا شيت: E. G. Janardanan, <i>Special Electrical Machines</i>, Chapter 1, pp. 11–14؛ ومعلمات الحالة الافتراضية من مشروع Avanzini؛ و<a href="https://www.omc-stepperonline.com/e-series-nema-23-bipolar-1-8deg-1-9nm-269oz-in-2-8a-3-2v-57x57x76mm-4-wires-23he30-2804s" target="_blank" rel="noopener noreferrer">StepperOnline 23HE30-2804S</a>.</p>
+    </div>
+    <p class="footer-mark">Educational estimate · Not experimentally validated</p>
+  </footer>
+</body>
+</html>
